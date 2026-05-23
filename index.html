@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>科研经费记录</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #eef3f9; color: #2c3e50; min-height: 100vh; }
+.app { display: flex; height: 100vh; overflow: hidden; }
+.sidebar { width: 280px; background: #1a3a5c; color: #fff; display: flex; flex-direction: column; flex-shrink: 0; }
+.sidebar-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-header h1 { font-size: 16px; font-weight: 600; color: #fff; }
+.sidebar-header p { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+.sidebar-search { padding: 12px 16px; }
+.sidebar-search input { width: 100%; padding: 8px 12px; border: none; border-radius: 6px; background: rgba(255,255,255,0.1); color: #fff; font-size: 13px; outline: none; }
+.sidebar-search input::placeholder { color: rgba(255,255,255,0.4); }
+.sidebar-search input:focus { background: rgba(255,255,255,0.15); }
+.dept-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
+.dept-group { margin-bottom: 4px; }
+.dept-title { padding: 8px 12px; font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.project-item { padding: 10px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; color: rgba(255,255,255,0.8); transition: all 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.project-item:hover { background: rgba(255,255,255,0.08); }
+.project-item.active { background: rgba(52,152,219,0.3); color: #fff; }
+.sidebar-footer { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.1); }
+.sidebar-footer .btn { width: 100%; }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.main-header { background: #fff; padding: 16px 24px; border-bottom: 1px solid #e8eef5; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+.main-header h2 { font-size: 18px; font-weight: 600; color: #1a3a5c; flex: 1; }
+.main-content { flex: 1; overflow-y: auto; padding: 24px; }
+.welcome { display: flex; align-items: center; justify-content: center; height: 100%; color: #8fa4b8; font-size: 15px; }
+.stats-bar { display: flex; gap: 16px; margin-bottom: 20px; }
+.stat-card { flex: 1; background: #fff; border-radius: 10px; padding: 16px; border: 1px solid #e8eef5; }
+.stat-card .label { font-size: 12px; color: #8fa4b8; margin-bottom: 4px; }
+.stat-card .value { font-size: 20px; font-weight: 700; color: #1a3a5c; }
+.stat-card .value.used { color: #e74c3c; }
+.stat-card .value.remain { color: #27ae60; }
+.section { background: #fff; border-radius: 10px; border: 1px solid #e8eef5; margin-bottom: 16px; }
+.section-head { padding: 14px 20px; border-bottom: 1px solid #f0f4f8; display: flex; align-items: center; justify-content: space-between; }
+.section-head h3 { font-size: 15px; font-weight: 600; color: #1a3a5c; }
+.section-body { padding: 16px 20px; }
+.budget-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.budget-table th { text-align: left; padding: 8px 12px; background: #f7fafc; color: #5a7a94; font-weight: 500; border-bottom: 1px solid #e8eef5; }
+.budget-table td { padding: 10px 12px; border-bottom: 1px solid #f5f8fb; }
+.budget-table tr:last-child td { border-bottom: none; }
+.budget-table .amount { font-weight: 600; }
+.budget-table .green { color: #27ae60; }
+.budget-table .red { color: #e74c3c; }
+.expense-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.expense-table th { text-align: left; padding: 8px 12px; background: #f7fafc; color: #5a7a94; font-weight: 500; border-bottom: 1px solid #e8eef5; }
+.expense-table td { padding: 10px 12px; border-bottom: 1px solid #f5f8fb; }
+.expense-table tr:last-child td { border-bottom: none; }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+.btn-primary { background: #3498db; color: #fff; }
+.btn-primary:hover { background: #2980b9; }
+.btn-danger { background: #e74c3c; color: #fff; }
+.btn-danger:hover { background: #c0392b; }
+.btn-ghost { background: transparent; color: #3498db; border: 1px solid #3498db; }
+.btn-ghost:hover { background: #ebf5fb; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-xs { padding: 3px 8px; font-size: 11px; }
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: #fff; border-radius: 12px; padding: 24px; width: 440px; max-width: 90%; max-height: 80vh; overflow-y: auto; }
+.modal h3 { font-size: 16px; margin-bottom: 16px; color: #1a3a5c; }
+.modal-actions { display: flex; gap: 12px; margin-top: 20px; justify-content: flex-end; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 5px; color: #5a7a94; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 9px 12px; border: 1px solid #d5e1ec; border-radius: 6px; font-size: 13px; outline: none; transition: border-color 0.2s; }
+.form-group input:focus, .form-group select:focus { border-color: #3498db; box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
+.form-group textarea { resize: vertical; min-height: 50px; }
+.cat-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.cat-row input { flex: 1; padding: 7px 10px; border: 1px solid #d5e1ec; border-radius: 6px; font-size: 13px; outline: none; }
+.cat-row input:focus { border-color: #3498db; }
+.del-btn { width: 24px; height: 24px; border: none; background: #fdecea; color: #e74c3c; border-radius: 4px; cursor: pointer; font-size: 14px; }
+.empty-msg { text-align: center; padding: 30px; color: #8fa4b8; font-size: 13px; }
+.progress-mini { height: 4px; background: #e8eef5; border-radius: 2px; margin-top: 4px; width: 100%; }
+.progress-mini .bar { height: 100%; border-radius: 2px; background: #3498db; }
+.progress-mini .bar.warn { background: #e74c3c; }
+</style>
+</head>
+<body>
+<div class="app">
+<div class="sidebar">
+  <div class="sidebar-header"><h1>科研经费记录</h1><p>项目经费管理系统 <span id="sync-status" style="font-size:10px;margin-left:4px;"></span></p></div>
+  <div class="sidebar-search"><input type="text" id="search-input" placeholder="搜索项目..." oninput="filterProjects()"></div>
+  <div class="dept-list" id="dept-list"></div>
+  <div class="sidebar-footer" id="sidebar-footer"></div>
+</div>
+<div class="main">
+  <div class="main-header"><h2 id="main-title">科研经费记录系统</h2><div id="main-actions"></div></div>
+  <div class="main-content" id="main-content"><div class="welcome">← 请从左侧选择一个项目查看详情</div></div>
+</div>
+</div>
+<div id="modal-overlay" class="modal-overlay"><div class="modal" id="modal-body"></div></div>
+<script>
+var GIST_ID = 'cbae8d1bcf734abde553ad60595a1d98';
+var GIST_TOKEN = new URLSearchParams(window.location.search).get('token') || '';
+var GIST_FILE = 'fund-data.json';
+var IS_ADMIN = !!GIST_TOKEN;
+var READONLY = !IS_ADMIN;
+var syncTimer = null;
+var isSyncing = false;
+var currentProjectId = null;
+var modalCallback = null;
+
+function getProjects() { return JSON.parse(localStorage.getItem('fund_projects') || '[]'); }
+function saveProjects(p) { localStorage.setItem('fund_projects', JSON.stringify(p)); scheduleSyncToGist(); }
+function getExpenses() { return JSON.parse(localStorage.getItem('fund_expenses') || '[]'); }
+function saveExpenses(e) { localStorage.setItem('fund_expenses', JSON.stringify(e)); scheduleSyncToGist(); }
+
+function scheduleSyncToGist() {
+  if (!GIST_TOKEN || !GIST_ID) return;
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncToGist, 1500);
+  updateSyncStatus('pending');
+}
+
+function syncToGist() {
+  if (isSyncing) { scheduleSyncToGist(); return; }
+  isSyncing = true;
+  updateSyncStatus('syncing');
+  var data = { projects: getProjects(), expenses: getExpenses(), lastSync: new Date().toISOString() };
+  var body = JSON.stringify({ files: {} });
+  var files = {}; files[GIST_FILE] = { content: JSON.stringify(data) };
+  fetch('https://api.github.com/gists/' + GIST_ID, {
+    method: 'PATCH', headers: { 'Authorization': 'token ' + GIST_TOKEN, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ files: files })
+  }).then(function(r) {
+    isSyncing = false;
+    if (r.ok) { updateSyncStatus('ok'); }
+    else { r.json().then(function(d){ console.error('Gist sync failed:', d.message); updateSyncStatus('error'); }); }
+  }).catch(function(e) { isSyncing = false; console.error('Gist sync error:', e); updateSyncStatus('error'); });
+}
+
+function loadFromGist() {
+  updateSyncStatus('syncing');
+  var url = 'https://gist.githubusercontent.com/chanhui1002/' + GIST_ID + '/raw/' + GIST_FILE + '?t=' + Date.now();
+  return fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
+    if (data && data.projects && data.projects.length > 0) {
+      localStorage.setItem('fund_projects', JSON.stringify(data.projects));
+      localStorage.setItem('fund_expenses', JSON.stringify(data.expenses || []));
+      updateSyncStatus('ok');
+      return true;
+    }
+    updateSyncStatus('ok');
+    return false;
+  }).catch(function(e) { console.error('Load from Gist failed:', e); updateSyncStatus('error'); return false; });
+}
+
+function updateSyncStatus(status) {
+  var el = document.getElementById('sync-status');
+  if (!el) return;
+  var map = { pending: '\u2022 \u5f85\u540c\u6b65', syncing: '\u21bb \u540c\u6b65\u4e2d...', ok: '\u2713 \u5df2\u540c\u6b65', error: '\u2717 \u540c\u6b65\u5931\u8d25' };
+  var colorMap = { pending: '#f39c12', syncing: '#3498db', ok: '#27ae60', error: '#e74c3c' };
+  el.textContent = map[status] || '';
+  el.style.color = colorMap[status] || '#999';
+}
+function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 9); }
+function formatMoney(y) { if(typeof y==='string')y=parseFloat(y); if(isNaN(y))return '0.00'; return y.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function getToday() { var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function escHtml(s) { var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function initDefaultProjects() {
+  if (localStorage.getItem('fund_projects')) return;
+  var raw = JSON.parse(`[["智能教育产业研究院","202601/2026年智能教育产业研究院经费"],["智能教育产业研究院","202501/智能教育产业研究院建设经费"],["教育变革与思政教育数智实验室","2025001/教育变革与思政教育数智实验室"],["理科课题","2025040016/郭炯 \u201c云端学校\u201d促进乡村教育资源均衡配置研究"],["理科课题","2025030024/郭炯 乡村学生学业质量发展智能评估项目"],["理科课题","2023040011/郭炯 教育数字化促进乡村教育高质量发展战略研究"],["理科课题","2366/郭炯 技术赋能乡村教育发展研究"],["理科课题","1724/郭炯 2017年度教育部中国移动科研基金"],["理科课题","1414/郭炯 教育部中国移动公司"],["文科课题","20250334/郭炯 西北师范大学教育变革与思政教育数智实验室项目"],["文科课题","2024010028/郭炯 国家智慧公共服务平台应用示范标准研究"],["文科课题","3051/郭炯 基于双师课堂的乡村教师专业发展路径研究"],["文科课题","2982/郭炯 甘肃省教育信息化\u201c十四五\u201d发展规划研制及典型示范"],["文科课题","2968/郭炯 智能时代教师专业发展诉求与生态构建研究"],["文科课题","2430/郭炯 信息化促进贫困地区教师专业发展"],["文科课题","068/郭炯 以县为主的技术支撑保障体系建设"],["文科课题","2177/郭炯 教育部信息化专项"],["文科课题","2096/郭炯 大数据支持的甘肃省教育精准扶贫预测"],["文科课题","235/郭炯 农村远程教育绩效评估"],["文科课题","1660/郭炯 高中教师信息技术应用提升课程研发"],["文科课题","1661/郭炯 教学研究及校本培训课程"],["文科课题","1547/郭炯 高通21世纪课堂教学研究"],["文科课题","1467/郭炯 未来教育课程本地化"],["文科课题","1458/郭炯 中移动项目远程支持服务"],["文科课题","1413/郭炯 2014青年教师科研能力提升计划专项"],["文科课题","1377/郭炯 中小学信息技术应用能力课程标准研"],["文科课题","1216/郭炯 远程学习设计及支持服务"],["校地校企合作课题","1356/郭炯 \u201c少年云助学计划\u201d项目技术服务"],["校地校企合作课题","1354/郭炯 县域教育数字化支持服务团队能力建设项目"],["校地校企合作课题","1170/郭炯 甘肃省教育数字化发展及腾讯支教调研项目"],["校地校企合作课题","1080/郭炯 国家中小学智慧教育平台应用培训项目"],["校地校企合作课题","1056/郭炯 师范类学生数字素养评价项目"],["校地校企合作课题","1021/郭炯 SFI课程开发项目"],["校地校企合作课题","1030/郭炯 庆阳市教师信息化素养能力提升培训项目"],["校地校企合作课题","0881/郭炯 2022年甘肃省中小学教师信息技术应用能力竞赛活动专家评审项目"],["校地校企合作课题","0766/郭炯 \u201c教育数字化转型背景下创新教学专项培训\u201d专项资源开发"],["校地校企合作课题","0660/郭炯 广州市网络学习空间创新设计与应用机制研究"],["校地校企合作课题","0606/郭炯 中小学教师信息技术应用能力提升培训课程资源开发"],["校地校企合作课题","0536/郭炯 国家级信息化教学实验区建设支持服务项目（蚌埠）"],["校地校企合作课题","0457/郭炯 2020年科技发展资金—教育部教育信息化战略研究基地建设"],["校地校企合作课题","0461/郭炯 佛山市\u201c智慧教育示范区\u201d"],["校地校企合作课题","0440/郭炯 加油计划阅读课程升级研发"],["校地校企合作课题","0384/郭炯 中小学教师培训课程资源委托开发"],["校地校企合作课题","0154/郭炯 兰州市智慧校园建设及评估标准"],["校地校企合作课题","0093/郭炯 网络学习空间功能设计项目"],["校地校企合作课题","407/郭炯 数字化音像资源制作项目"],["校地校企合作课题","032/郭炯 教师专业化平台设计课题费"],["校地校企合作课题","323/郭炯 中小学信息技术应用能力提升课程项"],["校地校企合作课题","324/教技院 中小学信息技术应用能力提升课程"],["科技成果转化项目","0001/郭绍青 中小学教师信息技术应用能力提升"],["文科课题间接经费","0503/郭炯 国家智慧公共服务平台应用示范标准研究"],["文科课题间接经费","0728/郭炯 基于双师课堂的乡村教师专业发展路径研究"],["文科课题间接经费","0687/郭炯 甘肃省教育信息化\u201c十四五\u201d发展规划研制及典型示范"]]`);
+  var projects = raw.map(function(r) {
+    var fullProj = r[1];
+    var slashIdx = fullProj.indexOf('/');
+    var code = slashIdx >= 0 ? fullProj.substring(0, slashIdx) : '';
+    var nameRaw = slashIdx >= 0 ? fullProj.substring(slashIdx + 1) : fullProj;
+    var name = nameRaw.replace(/^郭\s*炯\s*/, '').replace(/^郭绍青\s*/, '').replace(/^教技院\s*/, '').trim();
+    if (!name) name = nameRaw.trim();
+    return {
+      id: genId() + Math.random().toString(36).substr(2,4),
+      name: name, code: code, department: r[0],
+      startDate: '', totalAmount: 0,
+      categories: [
+        {id:genId(),name:'设备费',budget:0,used:0},
+        {id:genId(),name:'材料费',budget:0,used:0},
+        {id:genId(),name:'测试化验加工费',budget:0,used:0},
+        {id:genId(),name:'差旅费',budget:0,used:0},
+        {id:genId(),name:'会议费',budget:0,used:0},
+        {id:genId(),name:'劳务费',budget:0,used:0},
+        {id:genId(),name:'专家咨询费',budget:0,used:0},
+        {id:genId(),name:'其他',budget:0,used:0}
+      ],
+      createTime: Date.now()
+    };
+  });
+  saveProjects(projects);
+}
+
+function renderSidebar() {
+  var projects = getProjects();
+  var search = (document.getElementById('search-input').value || '').toLowerCase();
+  var grouped = {};
+  projects.forEach(function(p) {
+    if (search && p.name.toLowerCase().indexOf(search) < 0 && (p.code||'').toLowerCase().indexOf(search) < 0 && (p.department||'').toLowerCase().indexOf(search) < 0) return;
+    var dept = p.department || '未分类';
+    if (!grouped[dept]) grouped[dept] = [];
+    grouped[dept].push(p);
+  });
+  var html = '';
+  Object.keys(grouped).forEach(function(dept) {
+    html += '<div class="dept-group"><div class="dept-title">' + escHtml(dept) + '</div>';
+    grouped[dept].forEach(function(p) {
+      var cls = p.id === currentProjectId ? 'project-item active' : 'project-item';
+      var display = (p.code ? p.code + ' ' : '') + p.name;
+      html += '<div class="' + cls + '" onclick="openProject(\'' + p.id + '\')" title="' + escHtml(display) + '">' + escHtml(display) + '</div>';
+    });
+    html += '</div>';
+  });
+  if (!html) html = '<div class="empty-msg">无匹配项目</div>';
+  document.getElementById('dept-list').innerHTML = html;
+}
+
+function filterProjects() { renderSidebar(); }
+
+function openProject(id) {
+  currentProjectId = id;
+  renderSidebar();
+  renderDetail();
+}
+
+function renderDetail() {
+  var p = getProjects().find(function(x){return x.id===currentProjectId;});
+  if (!p) { document.getElementById('main-content').innerHTML='<div class="welcome">项目不存在</div>'; return; }
+  document.getElementById('main-title').textContent = p.name;
+  document.getElementById('main-actions').innerHTML = READONLY ? '' : '<button class="btn btn-ghost btn-sm" onclick="showEditProjectModal()">编辑项目</button> <button class="btn btn-danger btn-sm" onclick="deleteProject()">删除</button>';
+  var totalBudget=0, totalUsed=0;
+  (p.categories||[]).forEach(function(c){totalBudget+=c.budget||0; totalUsed+=c.used||0;});
+  var remaining = totalBudget - totalUsed;
+  var percent = totalBudget>0 ? Math.round(remaining/totalBudget*100) : 100;
+  var html = '<div class="stats-bar">';
+  html += '<div class="stat-card"><div class="label">经费总金额</div><div class="value">' + formatMoney(p.totalAmount) + '</div></div>';
+  html += '<div class="stat-card"><div class="label">预算合计</div><div class="value">' + formatMoney(totalBudget) + '</div></div>';
+  html += '<div class="stat-card"><div class="label">已使用</div><div class="value used">' + formatMoney(totalUsed) + '</div></div>';
+  html += '<div class="stat-card"><div class="label">剩余预算</div><div class="value remain">' + formatMoney(remaining) + ' (' + percent + '%)</div></div>';
+  html += '</div>';
+  html += '<div class="section"><div class="section-head"><h3>预算分配</h3>' + (READONLY ? '' : '<button class="btn btn-ghost btn-sm" onclick="showBudgetEditModal()">编辑预算</button>') + '</div><div class="section-body">';
+  if ((p.categories||[]).length > 0) {
+    html += '<table class="budget-table"><tr><th>类型</th><th>预算</th><th>已用</th><th>剩余</th><th>使用率</th></tr>';
+    (p.categories||[]).forEach(function(c) {
+      var rem = (c.budget||0)-(c.used||0);
+      var pct = c.budget>0 ? Math.round(c.used/c.budget*100) : 0;
+      var cls = pct > 80 ? 'red' : 'green';
+      html += '<tr><td>' + escHtml(c.name) + '</td><td class="amount">' + formatMoney(c.budget) + '</td><td class="amount red">' + formatMoney(c.used) + '</td><td class="amount green">' + formatMoney(rem) + '</td>';
+      html += '<td><div style="display:flex;align-items:center;gap:8px"><span class="' + cls + '">' + pct + '%</span><div class="progress-mini" style="width:60px"><div class="bar' + (pct>80?' warn':'') + '" style="width:' + pct + '%"></div></div></div></td></tr>';
+    });
+    html += '</table>';
+  } else { html += '<div class="empty-msg">暂无经费类型</div>'; }
+  html += '</div></div>';
+  html += '<div class="section"><div class="section-head"><h3>支出记录</h3>' + (READONLY ? '' : '<button class="btn btn-primary btn-sm" onclick="showExpenseModal()">+ 添加支出</button>') + '</div><div class="section-body">';
+  var expenses = getExpenses().filter(function(e){return e.projectId===currentProjectId;});
+  expenses.sort(function(a,b){return (b.date||'').localeCompare(a.date||'')||b.createTime-a.createTime;});
+  if (expenses.length > 0) {
+    html += '<table class="expense-table"><tr><th>日期</th><th>类型</th><th>金额</th><th>备注</th><th>操作</th></tr>';
+    expenses.forEach(function(exp) {
+      html += '<tr><td>' + (exp.date||'') + '</td><td>' + escHtml(exp.categoryName) + '</td><td class="amount red">-' + formatMoney(exp.amount) + '</td><td>' + escHtml(exp.note||'') + '</td>';
+      html += '<td>' + (READONLY ? '' : '<button class="btn btn-danger btn-xs" onclick="deleteExpense(\'' + exp.id + '\')">删除</button>') + '</td></tr>';
+    });
+    html += '</table>';
+  } else { html += '<div class="empty-msg">暂无支出记录</div>'; }
+  html += '</div></div>';
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function showModal(html) { document.getElementById('modal-body').innerHTML=html; document.getElementById('modal-overlay').classList.add('show'); }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); }
+
+function showCreateModal() {
+  var html = '<h3>新建项目</h3>';
+  html += '<div class="form-group"><label>项目名称</label><input type="text" id="m-name"></div>';
+  html += '<div class="form-group"><label>项目编号</label><input type="text" id="m-code" placeholder="可选"></div>';
+  html += '<div class="form-group"><label>所属部门</label><input type="text" id="m-dept" placeholder="可选"></div>';
+  html += '<div class="form-group"><label>开始日期</label><input type="date" id="m-date" value="' + getToday() + '"></div>';
+  html += '<div class="form-group"><label>经费总金额（元）</label><input type="number" id="m-total" step="0.01" placeholder="0.00"></div>';
+  html += '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="submitCreate()">创建</button></div>';
+  showModal(html);
+}
+
+function submitCreate() {
+  var name = document.getElementById('m-name').value.trim();
+  if (!name) { alert('请输入项目名称'); return; }
+  var total = parseFloat(document.getElementById('m-total').value) || 0;
+  var projects = getProjects();
+  projects.unshift({
+    id: genId(), name: name, code: document.getElementById('m-code').value.trim(),
+    department: document.getElementById('m-dept').value.trim(),
+    startDate: document.getElementById('m-date').value, totalAmount: Math.round(total*100)/100,
+    categories: [{id:genId(),name:'设备费',budget:0,used:0},{id:genId(),name:'材料费',budget:0,used:0},{id:genId(),name:'差旅费',budget:0,used:0},{id:genId(),name:'劳务费',budget:0,used:0},{id:genId(),name:'专家咨询费',budget:0,used:0},{id:genId(),name:'其他',budget:0,used:0}],
+    createTime: Date.now()
+  });
+  saveProjects(projects);
+  closeModal();
+  currentProjectId = projects[0].id;
+  renderSidebar();
+  renderDetail();
+}
+
+function showEditProjectModal() {
+  var p = getProjects().find(function(x){return x.id===currentProjectId;});
+  if (!p) return;
+  var html = '<h3>编辑项目信息</h3>';
+  html += '<div class="form-group"><label>项目名称</label><input type="text" id="m-ename" value="' + escHtml(p.name) + '"></div>';
+  html += '<div class="form-group"><label>项目编号</label><input type="text" id="m-ecode" value="' + escHtml(p.code||'') + '"></div>';
+  html += '<div class="form-group"><label>所属部门</label><input type="text" id="m-edept" value="' + escHtml(p.department||'') + '"></div>';
+  html += '<div class="form-group"><label>开始日期</label><input type="date" id="m-edate" value="' + (p.startDate||'') + '"></div>';
+  html += '<div class="form-group"><label>经费总金额（元）</label><input type="number" id="m-etotal" step="0.01" value="' + (p.totalAmount||'') + '"></div>';
+  html += '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="submitEditProject()">保存</button></div>';
+  showModal(html);
+}
+
+function submitEditProject() {
+  var projects = getProjects();
+  var p = projects.find(function(x){return x.id===currentProjectId;});
+  if (!p) return;
+  p.name = document.getElementById('m-ename').value.trim() || p.name;
+  p.code = document.getElementById('m-ecode').value.trim();
+  p.department = document.getElementById('m-edept').value.trim();
+  p.startDate = document.getElementById('m-edate').value;
+  p.totalAmount = Math.round((parseFloat(document.getElementById('m-etotal').value)||0)*100)/100;
+  saveProjects(projects);
+  closeModal();
+  renderSidebar();
+  renderDetail();
+}
+
+function showBudgetEditModal() {
+  var p = getProjects().find(function(x){return x.id===currentProjectId;});
+  if (!p) return;
+  var html = '<h3>编辑预算分配</h3><div id="budget-edit-list">';
+  (p.categories||[]).forEach(function(c, i) {
+    html += '<div class="cat-row" data-idx="' + i + '"><input type="text" value="' + escHtml(c.name) + '" class="be-name"><input type="number" value="' + (c.budget||'') + '" placeholder="预算" step="0.01" class="be-budget" style="width:120px">';
+    if (c.used <= 0) html += '<button class="del-btn" onclick="removeBudgetRow(this)">×</button>';
+    else html += '<span style="font-size:11px;color:#e74c3c;white-space:nowrap">已用' + formatMoney(c.used) + '</span>';
+    html += '</div>';
+  });
+  html += '</div><button class="btn btn-ghost btn-sm" onclick="addBudgetRow()" style="margin-top:8px">+ 添加类型</button>';
+  html += '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="submitBudgetEdit()">保存</button></div>';
+  showModal(html);
+}
+
+function addBudgetRow() {
+  var list = document.getElementById('budget-edit-list');
+  var div = document.createElement('div');
+  div.className = 'cat-row';
+  div.setAttribute('data-idx', '-1');
+  div.innerHTML = '<input type="text" placeholder="类型名称" class="be-name"><input type="number" placeholder="预算" step="0.01" class="be-budget" style="width:120px"><button class="del-btn" onclick="removeBudgetRow(this)">×</button>';
+  list.appendChild(div);
+}
+function removeBudgetRow(btn) { btn.parentElement.remove(); }
+
+function submitBudgetEdit() {
+  var projects = getProjects();
+  var p = projects.find(function(x){return x.id===currentProjectId;});
+  if (!p) return;
+  var rows = document.querySelectorAll('#budget-edit-list .cat-row');
+  var newCats = [];
+  var sumBudget = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var nameEl = rows[i].querySelector('.be-name');
+    var budgetEl = rows[i].querySelector('.be-budget');
+    var name = nameEl.value.trim();
+    if (!name) { alert('第' + (i+1) + '个类型名称不能为空'); return; }
+    var budget = Math.round((parseFloat(budgetEl.value)||0)*100)/100;
+    var idx = parseInt(rows[i].getAttribute('data-idx'));
+    var used = (idx >= 0 && p.categories[idx]) ? p.categories[idx].used : 0;
+    var catId = (idx >= 0 && p.categories[idx]) ? p.categories[idx].id : genId();
+    if (budget < used) { alert('"' + name + '"预算不能小于已使用金额（' + formatMoney(used) + '元）'); return; }
+    sumBudget += budget;
+    newCats.push({id:catId, name:name, budget:budget, used:used});
+  }
+  if (p.totalAmount > 0 && sumBudget > p.totalAmount) { alert('预算合计（' + formatMoney(sumBudget) + '）超出总金额（' + formatMoney(p.totalAmount) + '）'); return; }
+  p.categories = newCats;
+  saveProjects(projects);
+  closeModal();
+  renderDetail();
+}
+
+function showExpenseModal() {
+  var p = getProjects().find(function(x){return x.id===currentProjectId;});
+  if (!p || !p.categories || p.categories.length===0) { alert('请先添加经费类型'); return; }
+  var html = '<h3>添加支出</h3>';
+  html += '<div class="form-group"><label>经费类型</label><select id="m-exp-cat">';
+  p.categories.forEach(function(c,i) {
+    var rem = (c.budget||0)-(c.used||0);
+    html += '<option value="' + i + '">' + escHtml(c.name) + '（余 ' + formatMoney(rem) + '）</option>';
+  });
+  html += '</select></div>';
+  html += '<div class="form-group"><label>金额（元）</label><input type="number" id="m-exp-amt" step="0.01" placeholder="0.00"></div>';
+  html += '<div class="form-group"><label>日期</label><input type="date" id="m-exp-date" value="' + getToday() + '"></div>';
+  html += '<div class="form-group"><label>备注</label><textarea id="m-exp-note" placeholder="可选"></textarea></div>';
+  html += '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="submitExpense()">提交</button></div>';
+  showModal(html);
+}
+
+function submitExpense() {
+  var projects = getProjects();
+  var p = projects.find(function(x){return x.id===currentProjectId;});
+  if (!p) return;
+  var idx = parseInt(document.getElementById('m-exp-cat').value)||0;
+  var cat = p.categories[idx];
+  if (!cat) { alert('请选择经费类型'); return; }
+  var amount = parseFloat(document.getElementById('m-exp-amt').value)||0;
+  if (amount <= 0) { alert('请输入有效金额'); return; }
+  amount = Math.round(amount*100)/100;
+  var remaining = (cat.budget||0) - (cat.used||0);
+  if (amount > remaining) { alert('金额超出该类型余额（' + formatMoney(remaining) + '元）'); return; }
+  var date = document.getElementById('m-exp-date').value;
+  var note = document.getElementById('m-exp-note').value.trim();
+  var expenses = getExpenses();
+  expenses.push({id:genId(), projectId:currentProjectId, categoryId:cat.id, categoryName:cat.name, amount:amount, date:date, note:note, createTime:Date.now()});
+  saveExpenses(expenses);
+  cat.used = Math.round((cat.used+amount)*100)/100;
+  saveProjects(projects);
+  closeModal();
+  renderDetail();
+}
+
+function deleteExpense(expId) {
+  if (!confirm('确定要删除这笔支出记录吗？')) return;
+  var expenses = getExpenses();
+  var idx = expenses.findIndex(function(e){return e.id===expId;});
+  if (idx < 0) return;
+  var removed = expenses[idx];
+  expenses.splice(idx, 1);
+  saveExpenses(expenses);
+  var projects = getProjects();
+  var p = projects.find(function(x){return x.id===removed.projectId;});
+  if (p) {
+    var cat = p.categories.find(function(c){return c.id===removed.categoryId;});
+    if (cat) { cat.used = Math.round((cat.used-removed.amount)*100)/100; if(cat.used<0)cat.used=0; }
+    saveProjects(projects);
+  }
+  renderDetail();
+}
+
+function deleteProject() {
+  if (!confirm('⚠️ 确定要删除此项目及所有支出记录吗？此操作不可恢复！')) return;
+  var projects = getProjects().filter(function(p){return p.id!==currentProjectId;});
+  saveProjects(projects);
+  var expenses = getExpenses().filter(function(e){return e.projectId!==currentProjectId;});
+  saveExpenses(expenses);
+  currentProjectId = null;
+  document.getElementById('main-title').textContent = '科研经费记录系统';
+  document.getElementById('main-actions').innerHTML = '';
+  document.getElementById('main-content').innerHTML = '<div class="welcome">← 请从左侧选择一个项目查看详情</div>';
+  renderSidebar();
+}
+
+if (GIST_ID) {
+  loadFromGist().then(function(loaded) {
+    if (!loaded) initDefaultProjects();
+    renderSidebar();
+  });
+} else {
+  initDefaultProjects();
+  renderSidebar();
+}
+if (!READONLY) { document.getElementById('sidebar-footer').innerHTML = '<button class="btn btn-primary" onclick="showCreateModal()">+ 新建项目</button>'; }
+</script>
+</body>
+</html>
