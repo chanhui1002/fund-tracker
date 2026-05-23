@@ -259,8 +259,15 @@ function renderSidebar() {
       var totalBudget=0, totalUsed=0;
       (p.categories||[]).forEach(function(c){totalBudget+=c.budget||0; totalUsed+=c.used||0;});
       var remaining = totalBudget - totalUsed;
-      var remText = totalBudget > 0 ? '<span class="proj-remain">\u4f59 ' + formatMoney(remaining) + '</span>' : '';
-      html += '<div class="' + cls + '" onclick="openProject(\'' + p.id + '\')" title="' + escHtml(display) + '"><div class="proj-name">' + escHtml(display) + '</div>' + remText + '</div>';
+      var year = p.startDate ? p.startDate.substring(0,4) + '年' : '';
+      var meta = '';
+      if (totalBudget > 0 || year) {
+        var parts = [];
+        if (totalBudget > 0) parts.push('\u4f59 ' + formatMoney(remaining));
+        if (year) parts.push(year);
+        meta = '<span class="proj-remain">' + parts.join(' | ') + '</span>';
+      }
+      html += '<div class="' + cls + '" onclick="openProject(\'' + p.id + '\')" title="' + escHtml(display) + '"><div class="proj-name">' + escHtml(display) + '</div>' + meta + '</div>';
     });
     html += '</div>';
   });
