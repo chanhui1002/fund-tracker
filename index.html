@@ -80,6 +80,22 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .progress-mini { height: 4px; background: #e8eef5; border-radius: 2px; margin-top: 4px; width: 100%; }
 .progress-mini .bar { height: 100%; border-radius: 2px; background: #3498db; }
 .progress-mini .bar.warn { background: #e74c3c; }
+.budget-search { max-width: 600px; margin: 0 auto; padding: 20px 0; }
+.budget-search h3 { font-size: 16px; color: #1a3a5c; margin-bottom: 12px; text-align: center; }
+.budget-search-input { width: 100%; padding: 12px 16px; border: 2px solid #d5e1ec; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+.budget-search-input:focus { border-color: #3498db; box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
+.budget-search-hint { font-size: 12px; color: #8fa4b8; margin-top: 8px; text-align: center; }
+.budget-results { margin-top: 16px; }
+.budget-result-item { background: #fff; border: 1px solid #e8eef5; border-radius: 8px; padding: 14px 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.15s; }
+.budget-result-item:hover { border-color: #3498db; box-shadow: 0 2px 8px rgba(52,152,219,0.1); }
+.budget-result-left { flex: 1; min-width: 0; }
+.budget-result-proj { font-size: 13px; font-weight: 600; color: #1a3a5c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.budget-result-dept { font-size: 11px; color: #8fa4b8; margin-top: 2px; }
+.budget-result-cat { font-size: 12px; color: #5a7a94; margin-top: 4px; }
+.budget-result-right { text-align: right; margin-left: 12px; flex-shrink: 0; }
+.budget-result-amount { font-size: 16px; font-weight: 700; color: #27ae60; }
+.budget-result-label { font-size: 11px; color: #8fa4b8; }
+.budget-no-result { text-align: center; padding: 30px; color: #8fa4b8; font-size: 13px; }
 .menu-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 1100; width: 36px; height: 36px; border: none; border-radius: 8px; background: #1a3a5c; color: #fff; font-size: 20px; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
 .sidebar-mask { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 999; }
 @media (max-width: 768px) {
@@ -122,7 +138,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 </div>
 <div class="main">
   <div class="main-header"><h2 id="main-title">科研经费记录系统</h2><div id="main-actions"></div></div>
-  <div class="main-content" id="main-content"><div class="welcome">← 请从左侧选择一个项目查看详情</div></div>
+  <div class="main-content" id="main-content"></div>
 </div>
 </div>
 <div id="modal-overlay" class="modal-overlay"><div class="modal" id="modal-body"></div></div>
@@ -483,18 +499,62 @@ function deleteProject() {
   currentProjectId = null;
   document.getElementById('main-title').textContent = '科研经费记录系统';
   document.getElementById('main-actions').innerHTML = '';
-  document.getElementById('main-content').innerHTML = '<div class="welcome">← 请从左侧选择一个项目查看详情</div>';
+  renderWelcome();
   renderSidebar();
+}
+
+function renderWelcome() {
+  var html = '<div class="budget-search">';
+  html += '<h3>经费类型检索</h3>';
+  html += '<input type="text" class="budget-search-input" id="budget-search-input" placeholder="输入经费类型关键词，如：劳务、差旅、设备..." oninput="searchBudget()">';
+  html += '<div class="budget-search-hint">搜索后显示所有包含该类型且有预算剩余的项目</div>';
+  html += '<div class="budget-results" id="budget-results"></div>';
+  html += '</div>';
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function searchBudget() {
+  var keyword = (document.getElementById('budget-search-input').value || '').trim().toLowerCase();
+  var container = document.getElementById('budget-results');
+  if (!keyword) { container.innerHTML = ''; return; }
+  var projects = getProjects();
+  var results = [];
+  projects.forEach(function(p) {
+    (p.categories || []).forEach(function(c) {
+      if (c.name.toLowerCase().indexOf(keyword) < 0) return;
+      var remaining = (c.budget || 0) - (c.used || 0);
+      if (remaining <= 0) return;
+      results.push({ projectId: p.id, projectName: p.name, projectCode: p.code || '', dept: p.department || '', catName: c.name, remaining: remaining, budget: c.budget });
+    });
+  });
+  results.sort(function(a, b) { return b.remaining - a.remaining; });
+  if (results.length === 0) {
+    container.innerHTML = '<div class="budget-no-result">未找到有剩余预算的匹配经费类型</div>';
+    return;
+  }
+  var html = '';
+  results.forEach(function(r) {
+    var display = (r.projectCode ? r.projectCode + ' ' : '') + r.projectName;
+    html += '<div class="budget-result-item" onclick="openProject(\'' + r.projectId + '\')">';
+    html += '<div class="budget-result-left"><div class="budget-result-proj">' + escHtml(display) + '</div>';
+    html += '<div class="budget-result-dept">' + escHtml(r.dept) + '</div>';
+    html += '<div class="budget-result-cat">' + escHtml(r.catName) + '（预算 ' + formatMoney(r.budget) + '）</div></div>';
+    html += '<div class="budget-result-right"><div class="budget-result-amount">' + formatMoney(r.remaining) + '</div>';
+    html += '<div class="budget-result-label">可用余额</div></div></div>';
+  });
+  container.innerHTML = html;
 }
 
 if (GIST_ID) {
   loadFromGist().then(function(loaded) {
     if (!loaded) initDefaultProjects();
     renderSidebar();
+    renderWelcome();
   });
 } else {
   initDefaultProjects();
   renderSidebar();
+  renderWelcome();
 }
 if (!READONLY) { document.getElementById('sidebar-footer').innerHTML = '<button class="btn btn-primary" onclick="showCreateModal()">+ 新建项目</button>'; }
 function toggleSidebar() { document.querySelector('.sidebar').classList.toggle('open'); document.getElementById('sidebar-mask').classList.toggle('show'); }
