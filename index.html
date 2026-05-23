@@ -77,9 +77,39 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .progress-mini { height: 4px; background: #e8eef5; border-radius: 2px; margin-top: 4px; width: 100%; }
 .progress-mini .bar { height: 100%; border-radius: 2px; background: #3498db; }
 .progress-mini .bar.warn { background: #e74c3c; }
+.menu-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 1100; width: 36px; height: 36px; border: none; border-radius: 8px; background: #1a3a5c; color: #fff; font-size: 20px; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+.sidebar-mask { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 999; }
+@media (max-width: 768px) {
+  .app { flex-direction: column; height: auto; min-height: 100vh; }
+  .menu-toggle { display: flex; }
+  .sidebar { position: fixed; top: 0; left: -300px; width: 280px; height: 100vh; z-index: 1000; transition: left 0.3s ease; }
+  .sidebar.open { left: 0; }
+  .sidebar-mask.show { display: block; }
+  .main { width: 100%; min-height: 100vh; }
+  .main-header { padding: 12px 16px; padding-left: 56px; }
+  .main-header h2 { font-size: 15px; }
+  .main-content { padding: 12px; }
+  .stats-bar { flex-wrap: wrap; gap: 8px; }
+  .stat-card { flex: 1 1 calc(50% - 4px); min-width: calc(50% - 4px); padding: 12px; }
+  .stat-card .value { font-size: 16px; }
+  .stat-card .label { font-size: 11px; }
+  .section-body { padding: 12px; overflow-x: auto; }
+  .budget-table, .expense-table { min-width: 500px; font-size: 12px; }
+  .budget-table th, .budget-table td, .expense-table th, .expense-table td { padding: 8px 6px; }
+  .modal { width: 95%; padding: 16px; }
+  .section-head { padding: 12px 14px; flex-wrap: wrap; gap: 8px; }
+  .btn-sm { padding: 4px 8px; font-size: 11px; }
+}
+@media (max-width: 480px) {
+  .stat-card { flex: 1 1 100%; min-width: 100%; }
+  .main-header { flex-wrap: wrap; gap: 8px; }
+  .main-header h2 { font-size: 14px; }
+}
 </style>
 </head>
 <body>
+<button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()">☰</button>
+<div class="sidebar-mask" id="sidebar-mask" onclick="closeSidebar()"></div>
 <div class="app">
 <div class="sidebar">
   <div class="sidebar-header"><h1>科研经费记录</h1><p>项目经费管理系统 <span id="sync-status" style="font-size:10px;margin-left:4px;"></span></p></div>
@@ -460,6 +490,10 @@ if (GIST_ID) {
   renderSidebar();
 }
 if (!READONLY) { document.getElementById('sidebar-footer').innerHTML = '<button class="btn btn-primary" onclick="showCreateModal()">+ 新建项目</button>'; }
+function toggleSidebar() { document.querySelector('.sidebar').classList.toggle('open'); document.getElementById('sidebar-mask').classList.toggle('show'); }
+function closeSidebar() { document.querySelector('.sidebar').classList.remove('open'); document.getElementById('sidebar-mask').classList.remove('show'); }
+var origOpenProject = openProject;
+openProject = function(id) { closeSidebar(); origOpenProject(id); };
 </script>
 </body>
 </html>
